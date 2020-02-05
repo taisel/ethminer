@@ -206,15 +206,7 @@ typedef union {
 #define MIX(x) \
 do { \
     if (get_local_id(0) == lane_idx) { \
-        uint s = mix.s0; \
-        s = select(mix.s1, s, (x) != 1); \
-        s = select(mix.s2, s, (x) != 2); \
-        s = select(mix.s3, s, (x) != 3); \
-        s = select(mix.s4, s, (x) != 4); \
-        s = select(mix.s5, s, (x) != 5); \
-        s = select(mix.s6, s, (x) != 6); \
-        s = select(mix.s7, s, (x) != 7); \
-        buffer[hash_id] = fnv(init0 ^ (a + x), s) % dag_size; \
+        buffer[hash_id] = fnv(init0 ^ (a + x), ((uint*)&mix)[x]) % dag_size; \
     } \
     barrier(CLK_LOCAL_MEM_FENCE); \
     mix = fnv(mix, g_dag[buffer[hash_id]].uint8s[thread_id]); \
@@ -224,15 +216,7 @@ do { \
 
 #define MIX(x) \
 do { \
-    uint s = mix.s0; \
-    s = select(mix.s1, s, (x) != 1); \
-    s = select(mix.s2, s, (x) != 2); \
-    s = select(mix.s3, s, (x) != 3); \
-    s = select(mix.s4, s, (x) != 4); \
-    s = select(mix.s5, s, (x) != 5); \
-    s = select(mix.s6, s, (x) != 6); \
-    s = select(mix.s7, s, (x) != 7); \
-    buffer[get_local_id(0)] = fnv(init0 ^ (a + x), s) % dag_size; \
+    buffer[get_local_id(0)] = fnv(init0 ^ (a + x), ((uint*)&mix)[x]) % dag_size; \
     mix = fnv(mix, g_dag[buffer[lane_idx]].uint8s[thread_id]); \
     mem_fence(CLK_LOCAL_MEM_FENCE); \
 } while(0)
@@ -321,14 +305,7 @@ __kernel void search(
 #pragma unroll 1
         for (uint tid = 0; tid < 4; tid++) {
             if (tid == thread_id) {
-                share->uint2s[0] = state[0];
-                share->uint2s[1] = state[1];
-                share->uint2s[2] = state[2];
-                share->uint2s[3] = state[3];
-                share->uint2s[4] = state[4];
-                share->uint2s[5] = state[5];
-                share->uint2s[6] = state[6];
-                share->uint2s[7] = state[7];
+                share->uint16s[0] = ((uint16*)&state)[0];
             }
 
             barrier(CLK_LOCAL_MEM_FENCE);
@@ -353,11 +330,8 @@ __kernel void search(
 
             barrier(CLK_LOCAL_MEM_FENCE);
 
-            if (tid == thread_id) {
-                state[8] = share->uint2s[0];
-                state[9] = share->uint2s[1];
-                state[10] = share->uint2s[2];
-                state[11] = share->uint2s[3];
+			if (tid == thread_id) {
+				((uint8*)&state)[2] = share->uint8s[0];
             }
 
             barrier(CLK_LOCAL_MEM_FENCE);
